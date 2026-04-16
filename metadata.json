@@ -1,0 +1,6 @@
+{
+  "name": "EduMentor 360",
+  "description": "A highly animated, gamified educational platform focused on student development, academic tracking, and digital mentorship.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["AI Chatbot", "Analytics", "Gamification", "Simulations"]
+}

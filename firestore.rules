@@ -1,0 +1,147 @@
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: users
+// Document ID: userId (UID)
+// Fields:
+//   - uid: string (required)
+//   - name: string (required)
+//   - rollNo: string (required, unique-ish)
+//   - email: string (required)
+//   - role: string (required, ['student', 'parent', 'teacher'])
+//   - class: string
+//   - age: number
+//   - hobbies: list (strings)
+//   - parentOf: string (reference to student UID if role == parent)
+//
+// Collection: activities
+// Fields: studentUid, teacherUid, title, type, dueDate, status, submission, gradedScore, remarks
+//
+// Collection: goals
+// Fields: studentUid, teacherUid, title, status, date
+//
+// Collection: attendance
+// Fields: studentUid, date, isPresent
+//
+// Collection: studyLogs
+// Fields: studentUid, date, durationMinutes
+//
+// Collection: badges
+// Fields: studentUid, type, receivedAt, reason
+//
+// ===============================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    function hasRole(role) {
+      return isAuthenticated() && getUserData().role == role;
+    }
+    
+    function isParentOf(studentUid) {
+      return hasRole('parent') && getUserData().parentOf == studentUid;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        (getUserData().role == 'admin' || 
+         (request.auth.token.email == "aryansphalke2007@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'name', 'rollNo', 'email', 'role']) &&
+             data.uid is string &&
+             data.name is string && data.name.size() < 100 &&
+             data.rollNo is string && data.rollNo.size() < 20 &&
+             data.email is string &&
+             data.role in ['student', 'parent', 'teacher', 'admin'];
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated(); // To allow role checking and parent lookups
+      allow create: if isAuthenticated() && isValidUser(request.resource.data) && (isOwner(userId) || isAdmin());
+      allow update: if isAuthenticated() && isValidUser(request.resource.data) && (isOwner(userId) || isAdmin());
+    }
+
+    match /roll_map/{rollNo} {
+      allow get: if true; // Publicly resolve Roll No to Email for login
+      allow create: if isAuthenticated(); // Created during registration
+      allow update, delete: if isAdmin();
+    }
+
+    match /activities/{activityId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid == resource.data.studentUid || 
+        request.auth.uid == resource.data.teacherUid ||
+        isParentOf(resource.data.studentUid)
+      );
+      allow create: if hasRole('teacher') || isAdmin();
+      allow update: if isAuthenticated() && (
+        (hasRole('teacher') && request.auth.uid == resource.data.teacherUid) ||
+        (hasRole('student') && request.auth.uid == resource.data.studentUid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['submission', 'status'])) ||
+        isAdmin()
+      );
+    }
+
+    match /goals/{goalId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid == resource.data.studentUid || 
+        hasRole('teacher') || 
+        isParentOf(resource.data.studentUid)
+      );
+      allow create: if hasRole('teacher') || isAdmin();
+      allow update: if isAuthenticated() && (
+        hasRole('teacher') || 
+        (request.auth.uid == resource.data.studentUid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])) ||
+        isAdmin()
+      );
+    }
+
+    match /attendance/{attendanceId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid == resource.data.studentUid || 
+        hasRole('teacher') || 
+        isParentOf(resource.data.studentUid)
+      );
+      allow create: if hasRole('teacher') || isAdmin();
+      allow update: if hasRole('teacher') || isAdmin();
+    }
+
+    match /studyLogs/{logId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid == resource.data.studentUid || 
+        hasRole('teacher') || 
+        isParentOf(resource.data.studentUid)
+      );
+      allow create, update: if (isAuthenticated() && request.auth.uid == request.resource.data.studentUid) || isAdmin();
+    }
+
+    match /badges/{badgeId} {
+      allow read: if isAuthenticated();
+      allow create: if hasRole('teacher') || isAdmin();
+      allow delete: if isAdmin();
+    }
+  }
+}

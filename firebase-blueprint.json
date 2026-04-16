@@ -1,0 +1,103 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Student, Parent, or Teacher profile",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "rollNo": { "type": "string" },
+        "email": { "type": "string" },
+        "class": { "type": "string" },
+        "age": { "type": "number" },
+        "role": { "type": "string", "enum": ["student", "parent", "teacher"] },
+        "hobbies": { "type": "array", "items": { "type": "string" } },
+        "parentOf": { "type": "string", "description": "Student UID if role is parent" }
+      },
+      "required": ["uid", "name", "rollNo", "email", "role"]
+    },
+    "Activity": {
+      "title": "Activity",
+      "description": "Assignments, homework, or projects",
+      "type": "object",
+      "properties": {
+        "studentUid": { "type": "string" },
+        "teacherUid": { "type": "string" },
+        "title": { "type": "string" },
+        "type": { "type": "string", "enum": ["homework", "assignment", "project"] },
+        "dueDate": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["assigned", "submitted", "graded"] },
+        "submission": { "type": "string" },
+        "gradedScore": { "type": "number" },
+        "remarks": { "type": "string" }
+      },
+      "required": ["studentUid", "title", "type", "dueDate", "status"]
+    },
+    "Goal": {
+      "title": "Goal",
+      "description": "Daily goals assigned by teacher",
+      "type": "object",
+      "properties": {
+        "studentUid": { "type": "string" },
+        "teacherUid": { "type": "string" },
+        "title": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "completed"] },
+        "date": { "type": "string", "format": "date" }
+      },
+      "required": ["studentUid", "title", "status", "date"]
+    },
+    "Attendance": {
+      "title": "Attendance",
+      "description": "Student attendance record",
+      "type": "object",
+      "properties": {
+        "studentUid": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "isPresent": { "type": "boolean" }
+      },
+      "required": ["studentUid", "date", "isPresent"]
+    },
+    "StudyLog": {
+      "title": "StudyLog",
+      "description": "Tracking study time",
+      "type": "object",
+      "properties": {
+        "studentUid": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "durationMinutes": { "type": "number" }
+      },
+      "required": ["studentUid", "date", "durationMinutes"]
+    },
+    "Badge": {
+      "title": "Badge",
+      "description": "Gamification rewards",
+      "type": "object",
+      "properties": {
+        "studentUid": { "type": "string" },
+        "type": { "type": "string" },
+        "receivedAt": { "type": "string", "format": "date-time" },
+        "reason": { "type": "string" }
+      },
+      "required": ["studentUid", "type", "receivedAt"]
+    },
+    "RollMapping": {
+      "title": "RollMapping",
+      "description": "Maps Roll No to Email for login",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" }
+      },
+      "required": ["email"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": { "schema": "User", "description": "User profiles" },
+    "/roll_map/{rollNo}": { "schema": "RollMapping", "description": "Roll No to Email mapping" },
+    "/activities/{activityId}": { "schema": "Activity", "description": "Educational activities" },
+    "/goals/{goalId}": { "schema": "Goal", "description": "Daily goals" },
+    "/attendance/{attendanceId}": { "schema": "Attendance", "description": "Attendance logs" },
+    "/studyLogs/{logId}": { "schema": "StudyLog", "description": "Daily study time tracker" },
+    "/badges/{badgeId}": { "schema": "Badge", "description": "Rewards and achievements" }
+  }
+}
