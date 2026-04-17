@@ -297,7 +297,7 @@ const Sidebar: React.FC<{ activeTab: string; setActiveTab: (t: string) => void }
   ];
 
   return (
-    <div className="w-64 h-screen bg-indigo-600 text-white fixed left-0 top-0 flex flex-col p-6 overflow-y-auto scrollbar-hide border-r border-indigo-700 z-[100] shadow-2xl">
+    <div className="w-64 h-full bg-indigo-600 text-white flex flex-col p-6 shrink-0 border-r border-indigo-700 z-50 overflow-y-auto scrollbar-hide">
       <div className="flex items-center gap-3 mb-10 shrink-0">
         <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-indigo-600 text-2xl">
           🎓
@@ -311,7 +311,7 @@ const Sidebar: React.FC<{ activeTab: string; setActiveTab: (t: string) => void }
             key={item.id}
             type="button"
             onClick={() => setActiveTab(item.id)}
-            className={`w-full flex items-center gap-3 p-3 rounded-2xl transition-all cursor-pointer relative z-10 ${
+            className={`w-full flex items-center gap-3 p-3 rounded-2xl transition-all cursor-pointer relative ${
               activeTab === item.id ? 'bg-white text-indigo-600 shadow-lg' : 'hover:bg-indigo-500/50'
             }`}
           >
@@ -335,35 +335,162 @@ const Sidebar: React.FC<{ activeTab: string; setActiveTab: (t: string) => void }
   );
 };
 
-// --- VIEWS ---
+// --- UTILS & COMPONENTS ---
 
-const StudentDashboard: React.FC = () => {
-  const { profile } = useAuth();
-  const [data, setData] = useState({
-    attendance: 92,
-    studyTime: [
-      { day: 'Mon', hours: 2.5 },
-      { day: 'Tue', hours: 3.2 },
-      { day: 'Wed', hours: 1.8 },
-      { day: 'Thu', hours: 4.1 },
-      { day: 'Fri', hours: 2.9 },
-      { day: 'Sat', hours: 5.0 },
-      { day: 'Sun', hours: 3.5 },
-    ],
-    goals: [
-      { id: 1, title: 'Math Worksheet', completed: true },
-      { id: 2, title: 'English Essay', completed: false },
-      { id: 3, title: 'Science Lab Report', completed: false },
-    ],
-    badges: ['Early Bird', 'Math Pro', 'Streak Master']
-  });
+const VideoModal: React.FC<{ isOpen: boolean; onClose: () => void; videoId: string; title: string }> = ({ isOpen, onClose, videoId, title }) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="bg-white rounded-3xl overflow-hidden w-full max-w-4xl shadow-2xl"
+      >
+        <div className="p-4 border-bottom flex justify-between items-center bg-slate-50">
+          <h3 className="font-fredoka text-indigo-600">{title}</h3>
+          <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+            <LogOut size={20} className="transform rotate-180" />
+          </button>
+        </div>
+        <div className="aspect-video bg-black">
+          <iframe 
+            width="100%" 
+            height="100%" 
+            src={`https://www.youtube.com/embed/${videoId}?autoplay=1`} 
+            title={title}
+            frameBorder="0" 
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+            allowFullScreen
+          ></iframe>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+const RiddleBox: React.FC = () => {
+  const [showAnswer, setShowAnswer] = useState(false);
+  const riddles = [
+    { q: "What has keys but can't open locks?", a: "A piano!" },
+    { q: "The more of this there is, the less you see. What is it?", a: "Darkness" },
+    { q: "What has to be broken before you can use it?", a: "An egg" }
+  ];
+  const [current, setCurrent] = useState(0);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className="bg-emerald-900 text-white p-8 rounded-3xl h-full flex flex-col justify-center items-center text-center">
+      <div className="text-5xl mb-4">🧠</div>
+      <h3 className="text-2xl mb-4 font-fredoka uppercase">Daily Riddle</h3>
+      <p className="text-xl mb-6 italic">"{riddles[current].q}"</p>
+      
+      <AnimatePresence mode="wait">
+        {showAnswer ? (
+          <motion.p 
+            key="answer"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-2xl font-bold text-emerald-300 mb-6"
+          >
+            {riddles[current].a}
+          </motion.p>
+        ) : (
+          <div key="placeholder" className="h-[60px]" />
+        )}
+      </AnimatePresence>
+
+      <div className="flex gap-4">
+        <button 
+          onClick={() => setShowAnswer(!showAnswer)}
+          className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-xl transition-colors font-bold"
+        >
+          {showAnswer ? 'Hide Answer' : 'Reveal Answer'}
+        </button>
+        <button 
+          onClick={() => { setCurrent((current + 1) % riddles.length); setShowAnswer(false); }}
+          className="px-6 py-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors font-bold"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const StudentDashboard: React.FC = () => {
+  const { user } = useAuth();
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [studyLogs, setStudyLogs] = useState<StudyLog[]>([]);
+  const [attendance, setAttendance] = useState(92);
+  const [badges, setBadges] = useState<string[]>(['Early Bird', 'Streak Master']);
+  const [newGoal, setNewGoal] = useState('');
+
+  useEffect(() => {
+    if (!user) return;
+
+    // Real-time goals
+    const goalsRef = collection(db, 'goals');
+    const qGoals = query(goalsRef, where('studentUid', '==', user.uid));
+    const unsubGoals = onSnapshot(qGoals, (snap) => {
+      const g = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+      setGoals(g);
+    }, (err) => handleFirestoreError(err, OperationType.LIST, 'goals'));
+
+    // Real-time study logs
+    const logsRef = collection(db, 'studyLogs');
+    const qLogs = query(logsRef, where('studentUid', '==', user.uid));
+    const unsubLogs = onSnapshot(qLogs, (snap) => {
+      const l = snap.docs.map(doc => doc.data() as any);
+      setStudyLogs(l);
+    }, (err) => handleFirestoreError(err, OperationType.LIST, 'studyLogs'));
+
+    return () => {
+      unsubGoals();
+      unsubLogs();
+    };
+  }, [user]);
+
+  const toggleGoal = async (id: string, currentStatus: string) => {
+    try {
+      await setDoc(doc(db, 'goals', id), { 
+        status: currentStatus === 'completed' ? 'pending' : 'completed' 
+      }, { merge: true });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `goals/${id}`);
+    }
+  };
+
+  const addGoal = async () => {
+    if (!newGoal.trim() || !user) return;
+    try {
+      const goalRef = doc(collection(db, 'goals'));
+      await setDoc(goalRef, {
+        studentUid: user.uid,
+        title: newGoal,
+        status: 'pending',
+        date: new Date().toISOString().split('T')[0]
+      });
+      setNewGoal('');
+    } catch (err) {
+      handleFirestoreError(err, OperationType.CREATE, 'goals');
+    }
+  };
+
+  const chartData = [
+    { day: 'Mon', hours: 2.5 },
+    { day: 'Tue', hours: 3.2 },
+    { day: 'Wed', hours: 1.8 },
+    { day: 'Thu', hours: 4.1 },
+    { day: 'Fri', hours: 2.9 },
+    { day: 'Sat', hours: 5.0 },
+    { day: 'Sun', hours: 3.5 },
+  ];
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 relative z-10">
       <DashboardCard title="Study Velocity" icon={<TrendingUp />} className="lg:col-span-2">
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data.studyTime}>
+            <AreaChart data={chartData}>
               <defs>
                 <linearGradient id="colorHours" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
@@ -390,12 +517,12 @@ const StudentDashboard: React.FC = () => {
               <circle 
                 cx="80" cy="80" r="70" stroke="#6366f1" strokeWidth="12" fill="transparent"
                 strokeDasharray={2 * Math.PI * 70}
-                strokeDashoffset={2 * Math.PI * 70 * (1 - data.attendance / 100)}
+                strokeDashoffset={2 * Math.PI * 70 * (1 - attendance / 100)}
                 strokeLinecap="round"
               />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-4xl font-bold text-slate-800">{data.attendance}%</span>
+              <span className="text-4xl font-bold text-slate-800">{attendance}%</span>
               <span className="text-xs text-slate-500">This Month</span>
             </div>
           </div>
@@ -404,30 +531,46 @@ const StudentDashboard: React.FC = () => {
 
       <DashboardCard title="Daily Expedition" icon={<Bell />}>
         <div className="space-y-4 h-64 overflow-y-auto pr-2">
-          {data.goals.map(goal => (
-            <div key={goal.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-100">
-              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                goal.completed ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300'
+          <div className="flex gap-2 mb-4">
+            <input 
+              type="text" 
+              placeholder="New goal..." 
+              value={newGoal}
+              onChange={e => setNewGoal(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && addGoal()}
+              className="flex-1 p-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+            />
+            <button onClick={addGoal} className="px-3 bg-indigo-600 text-white rounded-xl text-xs font-bold">+</button>
+          </div>
+          {goals.length === 0 && <p className="text-center text-slate-400 text-sm py-4">No goals yet! Add your first one above.</p>}
+          {goals.map(goal => (
+            <button 
+              key={goal.id} 
+              onClick={() => toggleGoal(goal.id, goal.status)}
+              className="w-full flex items-center gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-100 hover:bg-white hover:shadow-md transition-all cursor-pointer text-left"
+            >
+              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                goal.status === 'completed' ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300'
               }`}>
-                {goal.completed && '✓'}
+                {goal.status === 'completed' && '✓'}
               </div>
-              <span className={`text-sm ${goal.completed ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
+              <span className={`text-sm ${goal.status === 'completed' ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
                 <ReadAloudText text={goal.title} />
               </span>
-            </div>
+            </button>
           ))}
         </div>
       </DashboardCard>
 
       <DashboardCard title="Achievements" icon={<Award />}>
-        <div className="flex flex-wrap gap-3 h-64 content-start">
-          {data.badges.map(badge => (
+        <div className="flex flex-wrap gap-3 h-64 content-start overflow-y-auto">
+          {badges.map(badge => (
             <div key={badge} className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white px-4 py-2 rounded-2xl text-sm font-medium shadow-md">
               🏅 {badge}
             </div>
           ))}
           <div className="w-full flex items-center justify-center p-8 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 text-sm">
-            Complete goals to unlock more!
+            Unlock 5 goals to earn 'Scientist' badge!
           </div>
         </div>
       </DashboardCard>
@@ -476,26 +619,59 @@ const VirtualLab: React.FC = () => {
 };
 
 const Activities: React.FC = () => {
-  const items = [
-    { title: 'Algebra Practice', subject: 'Math', due: 'Tomorrow', status: 'Pending', icon: '📐' },
-    { title: 'Photosynthesis Essay', subject: 'Biology', due: 'Friday', status: 'In Progress', icon: '🌿' },
-    { title: 'World War II Summary', subject: 'History', due: 'Monday', status: 'Assigned', icon: '🌍' },
+  const { user } = useAuth();
+  const [activities, setActivities] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(db, 'activities'), where('studentUid', '==', user.uid));
+    const unsub = onSnapshot(q, (snap) => {
+      setActivities(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (err) => handleFirestoreError(err, OperationType.LIST, 'activities'));
+    return () => unsub();
+  }, [user]);
+
+  const toggleStatus = async (id: string, current: string) => {
+    try {
+      await setDoc(doc(db, 'activities', id), { 
+        status: current === 'submitted' ? 'assigned' : 'submitted' 
+      }, { merge: true });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `activities/${id}`);
+    }
+  };
+
+  const dummyActivities = [
+    { id: 'a1', title: 'Periodic Table Quiz', type: 'Assignment', dueDate: 'Tomorrow', status: 'assigned', icon: '📐' },
+    { id: 'a2', title: 'History Essay', type: 'Homework', dueDate: 'Friday', status: 'submitted', icon: '🌍' }
   ];
+
+  const list = activities.length > 0 ? activities : dummyActivities;
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {items.map((item, i) => (
-        <DashboardCard key={i} title={item.subject} icon={<span>{item.icon}</span>} className="relative z-10">
+      {list.map((act) => (
+        <DashboardCard key={act.id} title={act.type || 'Activity'} icon={<span>{act.icon || '📝'}</span>} className="relative z-10">
           <div className="flex justify-between items-start mb-4">
             <div>
-              <h4 className="font-medium text-lg">{item.title}</h4>
-              <p className="text-sm text-slate-500">Due: {item.due}</p>
+              <h4 className="font-fredoka text-lg text-slate-800">{act.title}</h4>
+              <p className="text-sm text-slate-500">Due: {act.dueDate || 'TBD'}</p>
             </div>
-            <span className="px-3 py-1 bg-indigo-50 text-indigo-600 text-xs rounded-full font-medium">
-              {item.status}
+            <span className={`px-3 py-1 text-xs rounded-full font-medium ${
+              act.status === 'submitted' ? 'bg-emerald-100 text-emerald-600' : 'bg-indigo-50 text-indigo-600'
+            }`}>
+              {act.status === 'submitted' ? 'Submitted' : 'Pending'}
             </span>
           </div>
-          <button className="w-full py-3 bg-slate-50 hover:bg-slate-100 rounded-xl text-slate-600 text-sm font-medium transition-colors">
-            View Details & Submit
+          <button 
+            onClick={() => toggleStatus(act.id, act.status)}
+            className={`w-full py-3 rounded-xl text-sm font-bold transition-all ${
+              act.status === 'submitted' 
+                ? 'bg-emerald-500 text-white' 
+                : 'bg-slate-50 hover:bg-slate-100 text-slate-600'
+            }`}
+          >
+            {act.status === 'submitted' ? 'Submit Again' : 'Mark as Done'}
           </button>
         </DashboardCard>
       ))}
@@ -504,23 +680,38 @@ const Activities: React.FC = () => {
 };
 
 const VisualResources: React.FC = () => {
+  const [selectedVideo, setSelectedVideo] = useState<{ id: string, title: string } | null>(null);
   const topics = [
-    { title: 'Understanding Calculus', duration: '12:45', views: '1.2k', icon: '🔢' },
-    { title: 'The Human Heart', duration: '08:20', views: '3.4k', icon: '❤️' },
-    { title: 'Quantum Mechanics Basics', duration: '15:10', views: '800', icon: '🌀' },
+    { title: 'Understanding Calculus', duration: '12:45', views: '1.2k', icon: '🔢', videoId: 'WzI5InWBa_4' },
+    { title: 'The Human Heart', duration: '08:20', views: '3.4k', icon: '❤️', videoId: 'X9S6X7_U7EY' },
+    { title: 'Quantum Mechanics Basics', duration: '15:10', views: '800', icon: '🌀', videoId: 'p7bzE1E5PMY' },
   ];
+
   return (
     <div className="space-y-6">
-      <div className="bg-slate-900 aspect-video rounded-3xl flex items-center justify-center relative overflow-hidden group">
-        <Play fill="white" size={64} className="text-white z-10 opacity-80 group-hover:opacity-100 transition-opacity cursor-pointer" />
-        <div className="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-black/80 to-transparent text-white">
+      <div 
+        onClick={() => setSelectedVideo({ id: 'X5S9aP_Csc0', title: 'Plate Tectonics' })}
+        className="bg-slate-900 aspect-video rounded-3xl flex items-center justify-center relative overflow-hidden group cursor-pointer"
+      >
+        <img 
+          src="https://picsum.photos/seed/nature/1200/600" 
+          alt="Plate Tectonics" 
+          className="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:scale-110 transition-transform duration-700"
+          referrerPolicy="no-referrer"
+        />
+        <Play fill="white" size={64} className="text-white z-10 opacity-80 group-hover:opacity-100 transition-opacity" />
+        <div className="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-black/80 to-transparent text-white z-10">
           <h3 className="text-2xl font-fredoka">Deep Dive: Plate Tectonics</h3>
           <p className="text-slate-300">Advanced Earth Science - Chapter 4</p>
         </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {topics.map((t, i) => (
-          <div key={i} className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center gap-4 hover:shadow-md cursor-pointer transition-shadow">
+          <div 
+            key={i} 
+            onClick={() => setSelectedVideo({ id: t.videoId, title: t.title })}
+            className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center gap-4 hover:shadow-md cursor-pointer transition-shadow"
+          >
             <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center text-xl">{t.icon}</div>
             <div className="flex-1 min-w-0">
               <h4 className="text-sm font-medium truncate">{t.title}</h4>
@@ -529,6 +720,12 @@ const VisualResources: React.FC = () => {
           </div>
         ))}
       </div>
+      <VideoModal 
+        isOpen={!!selectedVideo} 
+        onClose={() => setSelectedVideo(null)} 
+        videoId={selectedVideo?.id || ''} 
+        title={selectedVideo?.title || ''} 
+      />
     </div>
   );
 };
@@ -622,29 +819,45 @@ const AppContent: React.FC = () => {
       case 'news': return <NewsSection />;
       case 'ebooks': return (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          {['Algebra I', 'Modern Biology', 'World History', 'Literature'].map(b => (
-            <div key={b} className="aspect-[3/4] bg-white rounded-2xl border-2 border-slate-100 p-4 flex flex-col items-center justify-center text-center hover:scale-105 transition-transform cursor-pointer">
-              <div className="text-5xl mb-4">📚</div>
-              <h4 className="font-medium">{b}</h4>
-              <p className="text-xs text-slate-400 mt-2">Download PDF</p>
-            </div>
+          {[
+            { name: 'Algebra I', link: 'https://openstax.org/details/books/elementary-algebra-2e' },
+            { name: 'Modern Biology', link: 'https://openstax.org/details/books/biology-2e' },
+            { name: 'World History', link: 'https://openstax.org/details/books/world-history-volume-1' },
+            { name: 'Literature', link: 'https://openstax.org/details/books/introduction-philosophy' }
+          ].map(b => (
+            <a 
+              key={b.name} 
+              href={b.link} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="aspect-[3/4] bg-white rounded-2xl border-2 border-slate-100 p-4 flex flex-col items-center justify-center text-center hover:scale-105 hover:border-indigo-300 transition-all cursor-pointer group"
+            >
+              <div className="text-5xl mb-4 group-hover:scale-110 transition-transform">📚</div>
+              <h4 className="font-medium text-slate-800">{b.name}</h4>
+              <p className="text-xs text-indigo-600 mt-2 font-bold uppercase tracking-wider">Access Book</p>
+            </a>
           ))}
         </div>
       );
       case 'fun': return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="aspect-video bg-indigo-900 rounded-3xl flex flex-col items-center justify-center text-white p-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-[500px]">
+          <div className="bg-indigo-900 rounded-3xl flex flex-col items-center justify-center text-white p-8 relative overflow-hidden group">
+            <motion.div 
+              animate={{ rotate: 360 }}
+              transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+              className="absolute -top-20 -right-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl group-hover:bg-indigo-500/30 transition-colors"
+            />
             <div className="text-6xl mb-4">🧩</div>
-            <h3 className="text-2xl mb-2">Daily Puzzle</h3>
-            <p className="text-indigo-200 mb-6 font-fredoka uppercase">Crack the code to earn a badge!</p>
-            <button className="px-8 py-3 bg-indigo-600 rounded-xl font-bold">Play Now</button>
+            <h3 className="text-3xl mb-2 font-fredoka">Puzzle Zone</h3>
+            <p className="text-indigo-200 mb-6 font-fredoka uppercase text-center">Challenge your logic skills!</p>
+            <div className="grid grid-cols-3 gap-2 mb-6">
+              {[1,2,3,4,5,6,7,8,9].sort(() => Math.random() - 0.5).map(i => (
+                <div key={i} className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center font-bold text-indigo-300 border border-white/5">{i}</div>
+              ))}
+            </div>
+            <button className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-bold shadow-xl transition-all">Quick Scramble</button>
           </div>
-          <div className="aspect-video bg-emerald-900 rounded-3xl flex flex-col items-center justify-center text-white p-8">
-            <div className="text-6xl mb-4">🧠</div>
-            <h3 className="text-2xl mb-2">Trivia Master</h3>
-            <p className="text-emerald-200 mb-6 font-fredoka uppercase">10 questions from this weeks lessons</p>
-            <button className="px-8 py-3 bg-emerald-600 rounded-xl font-bold">Start Quiz</button>
-          </div>
+          <RiddleBox />
         </div>
       );
       default: return null;
@@ -652,10 +865,10 @@ const AppContent: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex overflow-x-hidden">
+    <div className="h-screen bg-slate-50 flex overflow-hidden">
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
       
-      <main className="flex-1 ml-64 p-8 pb-32 min-h-screen relative">
+      <main className="flex-1 p-8 pb-32 h-screen relative overflow-y-auto scroll-smooth">
         <header className="flex justify-between items-center mb-10 sticky top-0 bg-slate-50/90 backdrop-blur-md z-[60] pb-4 px-2">
           <div>
             <h1 className="text-4xl text-slate-800">
@@ -707,6 +920,7 @@ const AppContent: React.FC = () => {
 };
 
 const StudyTimer: React.FC = () => {
+  const { user } = useAuth();
   const [seconds, setSeconds] = useState(3600); // 60 mins
   const [isActive, setIsActive] = useState(false);
   const [showBreak, setShowBreak] = useState(false);
@@ -720,10 +934,33 @@ const StudyTimer: React.FC = () => {
     } else if (seconds === 0) {
       setIsActive(false);
       setShowBreak(true);
+      recordStudySession();
       window.speechSynthesis.speak(new SpeechSynthesisUtterance("Time for a 10 minute break! You've worked hard."));
     }
     return () => clearInterval(interval);
   }, [isActive, seconds]);
+
+  const recordStudySession = async () => {
+    if (!user) return;
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const logRef = doc(db, 'studyLogs', `${user.uid}_${today}`);
+      const logSnap = await getDoc(logRef);
+      
+      let totalMinutes = 60;
+      if (logSnap.exists()) {
+        totalMinutes += logSnap.data().durationMinutes || 0;
+      }
+      
+      await setDoc(logRef, {
+        studentUid: user.uid,
+        date: today,
+        durationMinutes: totalMinutes
+      }, { merge: true });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, 'studyLogs');
+    }
+  };
 
   const formatTime = (s: number) => {
     const mins = Math.floor(s / 60);
@@ -732,7 +969,7 @@ const StudyTimer: React.FC = () => {
   };
 
   return (
-    <div className="absolute top-6 right-8 flex items-center gap-4 bg-white p-2 pl-4 rounded-2xl border border-slate-100 shadow-sm z-40">
+    <div className="absolute top-6 right-8 flex items-center gap-4 bg-white p-2 pl-4 rounded-2xl border border-slate-100 shadow-sm z-[70]">
       <div className="flex items-center gap-2 text-slate-600 font-mono text-lg">
         <Clock size={20} className="text-indigo-600" />
         {formatTime(seconds)}

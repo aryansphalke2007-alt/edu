@@ -15,6 +15,9 @@ export const LabSimulation: React.FC<{ type?: ExperimentType }> = ({ type = 'gra
     const width = containerRef.current.clientWidth;
     const height = 400;
 
+    // Clear previous canvas
+    containerRef.current.innerHTML = '';
+
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0f172a);
 
