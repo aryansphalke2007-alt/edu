@@ -65,20 +65,44 @@ export const LabSimulation: React.FC<{ type?: ExperimentType }> = ({ type = 'gra
         objects.push(electron);
       }
     } else if (type === 'optics') {
-      // Prism
-      const prismGeo = new THREE.ConeGeometry(1, 1.5, 3);
-      const prismMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, transparent: true, opacity: 0.6 });
+      // Prism (Equilateral Triangle)
+      const prismGeo = new THREE.CylinderGeometry(1.2, 1.2, 0.5, 3);
+      const prismMat = new THREE.MeshPhysicalMaterial({ 
+        color: 0xffffff,
+        metalness: 0,
+        roughness: 0,
+        transmission: 0.9,
+        thickness: 0.5,
+        transparent: true,
+        opacity: 0.4
+      });
       const prism = new THREE.Mesh(prismGeo, prismMat);
-      prism.rotation.x = Math.PI;
+      prism.rotation.x = Math.PI / 2;
+      prism.rotation.z = Math.PI / 6;
       scene.add(prism);
 
-      // Light Beam
-      const beamGeo = new THREE.BoxGeometry(0.05, 0.05, 5);
-      const beamMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-      const beam = new THREE.Mesh(beamGeo, beamMat);
-      beam.position.x = -3;
-      scene.add(beam);
-      objects.push(beam);
+      // Light Beams (Incoming)
+      const incomingBeamGeo = new THREE.BoxGeometry(0.04, 0.04, 4);
+      const incomingBeamMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+      const incomingBeam = new THREE.Mesh(incomingBeamGeo, incomingBeamMat);
+      incomingBeam.position.set(-2, 0, 0);
+      incomingBeam.rotation.y = Math.PI / 2;
+      scene.add(incomingBeam);
+
+      // Spectrum Beams (Outgoing)
+      const colors = [0xff0000, 0xff7f00, 0xffff00, 0x00ff00, 0x0000ff, 0x4b0082, 0x9400d3];
+      colors.forEach((color, i) => {
+        const spectrumBeamGeo = new THREE.BoxGeometry(0.02, 0.02, 4);
+        const spectrumBeamMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.8 });
+        const spectrumBeam = new THREE.Mesh(spectrumBeamGeo, spectrumBeamMat);
+        
+        // Position slightly after prism
+        spectrumBeam.position.set(2, 0, 0);
+        spectrumBeam.rotation.y = Math.PI / 2 + (i * 0.04) - 0.12;
+        
+        scene.add(spectrumBeam);
+        objects.push(spectrumBeam);
+      });
     }
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.8));
@@ -101,8 +125,10 @@ export const LabSimulation: React.FC<{ type?: ExperimentType }> = ({ type = 'gra
           obj.position.z = Math.sin(angle * (i + 1) * 0.5) * radius * 0.5;
         });
       } else if (type === 'optics') {
-        // Simple pulsing beam effect
-        objects[0].scale.z = 1 + Math.sin(angle) * 0.2;
+        // Pulse the spectrum beams
+        objects.forEach((obj, i) => {
+          obj.scale.z = 1 + Math.sin(angle * 2 + i) * 0.1;
+        });
       }
 
       renderer.render(scene, camera);

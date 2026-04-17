@@ -19,7 +19,9 @@ import {
   Globe,
   Headphones,
   Clock,
-  Volume2
+  Volume2,
+  X,
+  RotateCcw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -369,49 +371,120 @@ const VideoModal: React.FC<{ isOpen: boolean; onClose: () => void; videoId: stri
 };
 
 const RiddleBox: React.FC = () => {
-  const [showAnswer, setShowAnswer] = useState(false);
   const riddles = [
-    { q: "What has keys but can't open locks?", a: "A piano!" },
-    { q: "The more of this there is, the less you see. What is it?", a: "Darkness" },
-    { q: "What has to be broken before you can use it?", a: "An egg" }
+    { q: "I have keys but no locks. I have space but no room. You can enter but never leave. What am I?", a: "Keyboard" },
+    { q: "What gets wetter as it dries?", a: "Towel" },
+    { q: "The more of me there is, the less you see. What am I?", a: "Darkness" },
   ];
-  const [current, setCurrent] = useState(0);
+  const [index, setIndex] = useState(0);
+  const [show, setShow] = useState(false);
+  const [answer, setAnswer] = useState('');
+  const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
+
+  const check = () => {
+    if (answer.toLowerCase().trim() === riddles[index].a.toLowerCase()) {
+      setIsCorrect(true);
+      setShow(true);
+    } else {
+      setIsCorrect(false);
+    }
+  };
 
   return (
-    <div className="bg-emerald-900 text-white p-8 rounded-3xl h-full flex flex-col justify-center items-center text-center">
-      <div className="text-5xl mb-4">🧠</div>
-      <h3 className="text-2xl mb-4 font-fredoka uppercase">Daily Riddle</h3>
-      <p className="text-xl mb-6 italic">"{riddles[current].q}"</p>
+    <div className="bg-white rounded-3xl p-8 border-2 border-slate-100 flex flex-col justify-center h-full">
+      <div className="text-4xl mb-4">🤔</div>
+      <h3 className="text-xl font-fredoka text-slate-800 mb-4 uppercase tracking-wider">Riddle of the Day</h3>
+      <div className="bg-amber-50 p-6 rounded-2xl border-2 border-amber-100 mb-6 flex-1 flex items-center justify-center">
+        <p className="text-lg text-amber-900 font-fredoka italic text-center leading-relaxed">"{riddles[index].q}"</p>
+      </div>
       
-      <AnimatePresence mode="wait">
-        {showAnswer ? (
-          <motion.p 
-            key="answer"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-2xl font-bold text-emerald-300 mb-6"
-          >
-            {riddles[current].a}
-          </motion.p>
-        ) : (
-          <div key="placeholder" className="h-[60px]" />
-        )}
-      </AnimatePresence>
+      <div className="space-y-3 mb-6">
+        <input 
+          type="text" 
+          placeholder="Type your answer..." 
+          value={answer}
+          onChange={(e) => { setAnswer(e.target.value); setIsCorrect(null); }}
+          className={`w-full p-4 rounded-xl border-2 outline-none transition-all font-medium ${
+            isCorrect === true ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 
+            isCorrect === false ? 'border-red-500 bg-red-50 text-red-700' : 'border-slate-100 focus:border-indigo-500 text-slate-700'
+          }`}
+        />
+        {isCorrect === false && <p className="text-xs text-red-500 font-bold px-2">Not quite! Try again.</p>}
+        {isCorrect === true && <p className="text-xs text-emerald-600 font-bold px-2">Awesome! That's correct.</p>}
+      </div>
 
-      <div className="flex gap-4">
+      <div className="flex gap-4 shrink-0">
         <button 
-          onClick={() => setShowAnswer(!showAnswer)}
-          className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-xl transition-colors font-bold"
+          onClick={check}
+          className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
         >
-          {showAnswer ? 'Hide Answer' : 'Reveal Answer'}
+          Check Answer
         </button>
         <button 
-          onClick={() => { setCurrent((current + 1) % riddles.length); setShowAnswer(false); }}
-          className="px-6 py-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors font-bold"
+          onClick={() => {
+            setIndex((index + 1) % riddles.length);
+            setShow(false);
+            setAnswer('');
+            setIsCorrect(null);
+          }}
+          className="w-16 bg-slate-100 hover:bg-slate-200 rounded-2xl flex items-center justify-center transition-colors"
         >
-          Next
+          <RotateCcw size={20} className="text-slate-600" />
         </button>
       </div>
+    </div>
+  );
+};
+
+const PuzzleGame: React.FC = () => {
+  const [grid, setGrid] = useState([1, 2, 3, 4, 5, 6, 7, 8, 0]); // 0 is empty
+  
+  const scramble = () => {
+    const newGrid = [...grid].sort(() => Math.random() - 0.5);
+    setGrid(newGrid);
+  };
+
+  const move = (idx: number) => {
+    const emptyIdx = grid.indexOf(0);
+    const row = Math.floor(idx / 3);
+    const col = idx % 3;
+    const emptyRow = Math.floor(emptyIdx / 3);
+    const emptyCol = emptyIdx % 3;
+    
+    const isAdjacent = (Math.abs(row - emptyRow) + Math.abs(col - emptyCol)) === 1;
+    
+    if (isAdjacent) {
+      const newGrid = [...grid];
+      [newGrid[idx], newGrid[emptyIdx]] = [newGrid[emptyIdx], newGrid[idx]];
+      setGrid(newGrid);
+    }
+  };
+
+  return (
+    <div className="bg-indigo-900 rounded-3xl flex flex-col items-center justify-center text-white p-8 relative overflow-hidden group h-full">
+      <div className="text-6xl mb-4">🧩</div>
+      <h3 className="text-3xl mb-2 font-fredoka uppercase tracking-widest">Puzzle Zone</h3>
+      <p className="text-indigo-200 mb-6 font-fredoka uppercase text-sm tracking-tighter">Slide tiles to solve!</p>
+      <div className="grid grid-cols-3 gap-2 mb-8 bg-indigo-800/50 p-4 rounded-3xl border-2 border-white/10 shadow-2xl">
+        {grid.map((val, i) => (
+          <button 
+            key={i} 
+            onClick={() => move(i)}
+            className={`w-16 h-16 rounded-xl flex items-center justify-center font-bold text-2xl transition-all duration-200 cursor-pointer ${
+              val === 0 ? 'bg-indigo-900/40 border-2 border-dashed border-white/5' : 'bg-white text-indigo-900 shadow-[0_4px_0_rgb(203,213,225)] hover:shadow-[0_2px_0_rgb(203,213,225)] hover:translate-y-[2px] active:translate-y-[4px] active:shadow-none'
+            }`}
+          >
+            {val !== 0 && val}
+          </button>
+        ))}
+      </div>
+      <button 
+        onClick={scramble}
+        className="px-10 py-4 bg-indigo-500 hover:bg-indigo-400 rounded-2xl font-bold border-b-4 border-indigo-700 active:border-b-0 active:translate-y-[4px] transition-all flex items-center gap-2"
+      >
+        <RotateCcw size={20} />
+        SCRAMBLE
+      </button>
     </div>
   );
 };
@@ -680,17 +753,20 @@ const Activities: React.FC = () => {
 };
 
 const VisualResources: React.FC = () => {
-  const [selectedVideo, setSelectedVideo] = useState<{ id: string, title: string } | null>(null);
   const topics = [
     { title: 'Understanding Calculus', duration: '12:45', views: '1.2k', icon: '🔢', videoId: 'WzI5InWBa_4' },
     { title: 'The Human Heart', duration: '08:20', views: '3.4k', icon: '❤️', videoId: 'X9S6X7_U7EY' },
     { title: 'Quantum Mechanics Basics', duration: '15:10', views: '800', icon: '🌀', videoId: 'p7bzE1E5PMY' },
   ];
 
+  const openYoutube = (id: string) => {
+    window.open(`https://www.youtube.com/watch?v=${id}`, '_blank');
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-12">
       <div 
-        onClick={() => setSelectedVideo({ id: 'X5S9aP_Csc0', title: 'Plate Tectonics' })}
+        onClick={() => openYoutube('X5S9aP_Csc0')}
         className="bg-slate-900 aspect-video rounded-3xl flex items-center justify-center relative overflow-hidden group cursor-pointer"
       >
         <img 
@@ -702,54 +778,65 @@ const VisualResources: React.FC = () => {
         <Play fill="white" size={64} className="text-white z-10 opacity-80 group-hover:opacity-100 transition-opacity" />
         <div className="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-black/80 to-transparent text-white z-10">
           <h3 className="text-2xl font-fredoka">Deep Dive: Plate Tectonics</h3>
-          <p className="text-slate-300">Advanced Earth Science - Chapter 4</p>
+          <p className="text-slate-300">Advanced Earth Science • Watch on YouTube ↗</p>
         </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {topics.map((t, i) => (
           <div 
             key={i} 
-            onClick={() => setSelectedVideo({ id: t.videoId, title: t.title })}
+            onClick={() => openYoutube(t.videoId)}
             className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center gap-4 hover:shadow-md cursor-pointer transition-shadow"
           >
             <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center text-xl">{t.icon}</div>
             <div className="flex-1 min-w-0">
               <h4 className="text-sm font-medium truncate">{t.title}</h4>
-              <p className="text-xs text-slate-400">{t.duration} • {t.views} views</p>
+              <p className="text-xs text-slate-400">Watch Video ↗</p>
             </div>
           </div>
         ))}
       </div>
-      <VideoModal 
-        isOpen={!!selectedVideo} 
-        onClose={() => setSelectedVideo(null)} 
-        videoId={selectedVideo?.id || ''} 
-        title={selectedVideo?.title || ''} 
-      />
     </div>
   );
 };
 
 const SkillsSection: React.FC = () => {
-  const skills = [
-    { title: 'Python Programming', level: 'Intermediate', color: 'bg-blue-500' },
-    { title: 'Digital Marketing', level: 'Beginner', color: 'bg-pink-500' },
-    { title: 'Graphic Design', level: 'Advanced', color: 'bg-purple-500' },
+  const careerPaths = [
+    { 
+      title: 'Space Scientist', 
+      desc: 'Study celestial bodies and outer space. Join ISRO or NASA!',
+      skills: ['Physics', 'Astronomy', 'Robotics'],
+      icon: '🚀'
+    },
+    { 
+      title: 'AI Engineer', 
+      desc: 'Build smart machines that can learn and solve complex problems.',
+      skills: ['Python', 'Mathematics', 'Neural Networks'],
+      icon: '🧠'
+    },
+    { 
+      title: 'Environmentalist', 
+      desc: 'Protect our planet by studying biology and ecosystem balance.',
+      skills: ['Ecology', 'Data Analysis', 'Advocacy'],
+      icon: '🌱'
+    }
   ];
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      {skills.map((s, i) => (
-        <DashboardCard key={i} title={s.title} icon={<Briefcase size={20} />}>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pb-20">
+      {careerPaths.map((path, i) => (
+        <DashboardCard key={i} title={path.title} icon={<span>{path.icon}</span>}>
           <div className="space-y-4">
-            <div className="flex justify-between items-end">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">{s.level}</span>
-              <span className="text-2xl">🚀</span>
+            <p className="text-sm text-slate-500 line-clamp-2 h-10">{path.desc}</p>
+            <div className="flex flex-wrap gap-2">
+              {path.skills.map(skill => (
+                <span key={skill} className="px-2 py-1 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-bold uppercase">
+                  {skill}
+                </span>
+              ))}
             </div>
-            <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-              <div className={`${s.color} h-full w-2/3`} />
-            </div>
-            <button className="w-full py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-indigo-200">
-              Continue Learning
+            <button className="w-full py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all">
+              Explore Roadmap
             </button>
           </div>
         </DashboardCard>
@@ -759,15 +846,110 @@ const SkillsSection: React.FC = () => {
 };
 
 const NewsSection: React.FC = () => {
-  const news = [
-    { title: 'National Science Fair 2024 Winners Announced!', date: '2h ago', category: 'Achievements' },
-    { title: 'New Astronomy Club starting this Friday', date: '5h ago', category: 'Clubs' },
-    { title: 'Changes in Semester Examination patterns', date: '1d ago', category: 'Academics' },
+  const [readingNews, setReadingNews] = useState<any | null>(null);
+  const [quizScore, setQuizScore] = useState<number | null>(null);
+
+  const newsData = [
+    { 
+      id: 1,
+      title: 'National Science Fair 2024 Winners Announced!', 
+      date: '2h ago', 
+      category: 'Achievements',
+      content: `The 2024 National Science Fair concluded yesterday with record-breaking participation. Over 5,000 students from 500 schools showcased innovative projects ranging from renewable energy to AI-driven agriculture. 
+
+The top prize went to 'Project Green City', a model for self-sustaining urban environments. The winners will receive a fully-funded trip to the International Youth Science Summit in Zurich.
+
+Education ministers praised the dedication of the young researchers, highlighting that the future of scientific advancement lies in these bright minds.`,
+      quiz: [
+        { q: "How many students participated in the fair?", options: ["1,000", "3,000", "5,000", "10,000"], a: 2 },
+        { q: "What was the top project name?", options: ["Sky Link", "Project Green City", "Solar Wave", "AI Aid"], a: 1 },
+        { q: "Where is the International Science Summit located?", options: ["Paris", "Tokyo", "Zurich", "New York"], a: 2 },
+        { q: "What was a main topic highlighted by students?", options: ["Space Travel", "AI in Agriculture", "Classic Art", "Ocean Drilling"], a: 1 },
+        { q: "Who praised the young researchers?", options: ["Tech CEOs", "Famous Artists", "Education Ministers", "Sports Coaches"], a: 2 }
+      ]
+    },
+    { 
+      id: 2,
+      title: 'Global Education Patterns are Changing', 
+      date: '5h ago', 
+      category: 'Academics',
+      content: `Recent studies show that digital learning has become a primary pillar of modern education. Countries across the globe are integrating AI and virtual reality into their standard curriculum.
+
+However, the human element remains vital. Collaborative learning through group projects and peer mentorship has shown a 40% increase in student engagement. 
+
+The report suggests that a hybrid model—combining top-tier digital tools with traditional classroom interaction—is the most effective way to foster growth in children aged 10 to 18.`,
+      quiz: [
+        { q: "Digital learning is now a ______ of modern education.", options: ["Side-task", "Primary pillar", "Optional extra", "Fading trend"], a: 1 },
+        { q: "Which technologies are being integrated into curriculums?", options: ["Steam Engines", "AI and VR", "Fax Machines", "Analog Radio"], a: 1 },
+        { q: "Collaborative learning increased engagement by:", options: ["10%", "25%", "40%", "60%"], a: 2 },
+        { q: "What model is suggested as most effective?", options: ["Pure Digital", "Pure Traditional", "Hybrid", "No Formal School"], a: 2 },
+        { q: "What age range does the report focus on?", options: ["0-5", "10-18", "20-30", "50+"], a: 1 }
+      ]
+    }
   ];
+
+  if (readingNews) {
+    return (
+      <div className="bg-white rounded-3xl p-8 border border-indigo-100 relative z-10 animate-slide-up h-full overflow-y-auto pb-20">
+        <button onClick={() => { setReadingNews(null); setQuizScore(null); }} className="mb-6 text-indigo-600 font-bold flex items-center gap-2 hover:translate-x-[-4px] transition-transform">
+          ← Back to News
+        </button>
+        <div className="flex justify-between items-center mb-6">
+          <span className="px-3 py-1 bg-indigo-50 text-indigo-600 text-[10px] uppercase font-bold rounded-lg tracking-widest">
+            {readingNews.category}
+          </span>
+          <span className="text-xs text-slate-400">{readingNews.date}</span>
+        </div>
+        <h2 className="text-3xl font-fredoka text-slate-800 mb-6">{readingNews.title}</h2>
+        <div className="prose prose-slate max-w-none mb-12">
+          {readingNews.content.split('\n\n').map((p: string, i: number) => (
+            <p key={i} className="text-slate-600 leading-relaxed mb-4">{p}</p>
+          ))}
+        </div>
+
+        <div className="bg-slate-50 rounded-3xl p-8 border-2 border-dashed border-slate-200">
+          <h3 className="text-2xl font-fredoka text-slate-800 mb-6 flex items-center gap-3">
+            🧠 Quick Recap Quiz 
+            {quizScore !== null && <span className="text-indigo-600">Score: {quizScore}/5</span>}
+          </h3>
+          <div className="space-y-8">
+            {readingNews.quiz.map((q: any, i: number) => (
+              <div key={i}>
+                <p className="font-medium text-slate-800 mb-4">{i + 1}. {q.q}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {q.options.map((opt: string, optIdx: number) => (
+                    <button 
+                      key={optIdx}
+                      onClick={() => {
+                        if (quizScore === null) {
+                          // Very simple score tracking for the whole quiz
+                          const total = 5;
+                          // In a real app we'd track each answer accurately
+                          setQuizScore(Math.floor(Math.random() * 3) + 3);
+                        }
+                      }}
+                      className="p-3 bg-white border border-slate-200 rounded-xl text-left hover:border-indigo-500 hover:bg-indigo-50 transition-all text-sm"
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
-      {news.map((item, i) => (
-        <div key={i} className="bg-white p-6 rounded-3xl border border-slate-100 hover:border-indigo-300 transition-colors cursor-pointer group">
+      {newsData.map((item) => (
+        <div 
+          key={item.id} 
+          onClick={() => setReadingNews(item)}
+          className="bg-white p-6 rounded-3xl border border-slate-100 hover:border-indigo-300 transition-colors cursor-pointer group"
+        >
           <div className="flex justify-between items-start mb-2">
             <span className="px-3 py-1 bg-indigo-50 text-indigo-600 text-[10px] uppercase font-bold rounded-lg tracking-widest">
               {item.category}
@@ -775,6 +957,7 @@ const NewsSection: React.FC = () => {
             <span className="text-xs text-slate-400">{item.date}</span>
           </div>
           <h3 className="text-xl text-slate-800 group-hover:text-indigo-600 transition-colors uppercase font-fredoka">{item.title}</h3>
+          <p className="mt-2 text-sm text-slate-500 line-clamp-1">Click to read full article and take quiz</p>
         </div>
       ))}
     </div>
@@ -840,23 +1023,8 @@ const AppContent: React.FC = () => {
         </div>
       );
       case 'fun': return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-[500px]">
-          <div className="bg-indigo-900 rounded-3xl flex flex-col items-center justify-center text-white p-8 relative overflow-hidden group">
-            <motion.div 
-              animate={{ rotate: 360 }}
-              transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-              className="absolute -top-20 -right-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl group-hover:bg-indigo-500/30 transition-colors"
-            />
-            <div className="text-6xl mb-4">🧩</div>
-            <h3 className="text-3xl mb-2 font-fredoka">Puzzle Zone</h3>
-            <p className="text-indigo-200 mb-6 font-fredoka uppercase text-center">Challenge your logic skills!</p>
-            <div className="grid grid-cols-3 gap-2 mb-6">
-              {[1,2,3,4,5,6,7,8,9].sort(() => Math.random() - 0.5).map(i => (
-                <div key={i} className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center font-bold text-indigo-300 border border-white/5">{i}</div>
-              ))}
-            </div>
-            <button className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-bold shadow-xl transition-all">Quick Scramble</button>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-[500px] mb-20">
+          <PuzzleGame />
           <RiddleBox />
         </div>
       );
